@@ -249,6 +249,9 @@ void drawImg(int offset)
  * 
  *************************************/
 
+//last color at that range
+int last_clock[20][2];
+
 void drawArm(float angle, float cx, float cy, float l, uint16_t c)
 {
     angle -= 1.0/4; //Offset degree so it starts in north
@@ -268,7 +271,17 @@ void drawArm(float angle, float cx, float cy, float l, uint16_t c)
     {
       ll += 0.5;
     }
-    display.drawPixel(round(cx+dx*ll), round(cy+dy*ll), c);
+
+    int x = round(cx+dx*ll);
+    int y = round(cy+dy*ll);
+
+
+    //Remember last pixel we drew on    
+    display.drawPixel(last_clock[int(round(l))][0], last_clock[int(round(l))][1], 0);
+    last_clock[int(round(l))][0] = x;
+    last_clock[int(round(l))][1] = y;
+    
+    display.drawPixel(x, y, c);
 }
 
 
@@ -288,18 +301,14 @@ void setup() {
 
   display.setBrightness(50);
 
+  drawImg(0);
+
   
   Serial.begin(115200);
   Serial.println();
   Serial.println();
 
-  
-  
-  
-  
   //initWorld();
-  
-
   
   Serial.print("Connecting to ");
   Serial.println(ssid);
@@ -370,6 +379,7 @@ unsigned long lastepoch = 0;
 unsigned long lastepoch_millis;
 
 
+int last_i = -999;
 
 void loop() {
   int64_t n = millis();
@@ -402,31 +412,30 @@ void loop() {
     int dayseconds = 86400;
     int halfdayseconds = dayseconds / 2;
     
-    float sleeptime = (timeClient.getEpochTime() % dayseconds + 3600*13)/ (1.0*dayseconds);
-
-    sleeptime = ((n%10000)/10000.0);
-
-    drawImg(
-      round(
+    float sleeptime = (timeClient.getEpochTime() % dayseconds + (12-1)*3600)/ (1.0*dayseconds);
+    int image_height = round(
         constrain(
-          sin(2*M_PI*sleeptime)*32+16
+          cos(2*M_PI*sleeptime)*64+16
         , 0, 32)
-      )
-    );
-    
-    
-    
-    float arm = (timeClient.getEpochTime() % halfdayseconds)/(1.0*halfdayseconds);
-    
+        );
 
-    //display.drawPixelRGB888(16 , 16, 255, 0, 255);  
-    drawArm((timeClient.getEpochTime()%halfdayseconds)/(1.0*halfdayseconds), 15.5, 15.5, 13, myRED);
-    drawArm((timeClient.getEpochTime()%3600)/(1.0*3600), 15.5, 15.5, 14, myGREEN);
+
+    
+    if(image_height != last_i)
+    {
+      drawImg(image_height);
+      last_i = image_height;
+    }
+    
+    drawArm((e%halfdayseconds)/(1.0*halfdayseconds), 15.5, 15.5, 13, myRED);
+    drawArm((e%3600)/(1.0*3600), 15.5, 15.5, 14, myGREEN);
     drawArm(((n-lastepoch_millis) % 60000)/(1.0*60000), 15.5, 15.5, 15, myBLUE);
 
-    //drawArm((n % 30000)/(30000.0), 15.5, 15.5, 15.0, myRED);
-    //drawArm((n % 32000)/(32000.0), 15.5, 15.5, 14.0, myGREEN);
-    //drawArm((n % 34000)/(34000.0), 15.5, 15.5, 13.0, myBLUE);
+    
+    
+    
+    
+    
 
     
   }
