@@ -1,14 +1,15 @@
 
 
-#include <NTPClient.h>
+//#include <NTPClient.h>
 #include <ArduinoOTA.h>
 #include <PxMatrix.h>
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include "Adafruit_GFX.h"
 #include "daynight.h"
+#include "ezTime.h"
 
-const long utcOffsetInSeconds = 3600;
+//const long utcOffsetInSeconds = 3600*2;
 
 
 #ifndef STASSID
@@ -26,7 +27,7 @@ char disp[100];
 
 WiFiUDP ntpUDP;
 
-NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
+//NTPClient timeClient(ntpUDP, "pool.ntp.org", utcOffsetInSeconds);
 
 
 
@@ -44,7 +45,7 @@ Ticker display_ticker;
 #define matrix_height 32
 #define DON 1
 
-uint8_t display_draw_time=50; //10-50 is usually fine
+uint8_t display_draw_time=7; //10-50 is usually fine
 
 
 PxMATRIX display(matrix_width,matrix_height,P_LAT, P_OE,P_A,P_B,P_C);
@@ -291,6 +292,8 @@ void drawArm(float angle, float cx, float cy, float l, uint16_t c)
  * 
  *************************************/
 
+Timezone myTZ;
+
 
 void setup() {
 
@@ -299,7 +302,7 @@ void setup() {
   display.setFastUpdate(true);
   display_update_enable(true);
 
-  display.setBrightness(50);
+  display.setBrightness(180);
 
   drawImg(0);
 
@@ -324,6 +327,12 @@ void setup() {
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+
+  waitForSync();
+  
+  myTZ.setLocation(F("Europe/Copenhagen"));
+  Serial.print(F("Copenhagen:         "));
+  Serial.println(myTZ.dateTime());
 
   
   
@@ -360,7 +369,7 @@ void setup() {
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
 
-  timeClient.begin();
+  //timeClient.begin();
 }
 
 
@@ -383,9 +392,18 @@ int last_i = -999;
 
 void loop() {
   int64_t n = millis();
+  
+  //reboot once daily
+  if(n > 1000*24*60*60)
+  {
+    Serial.print("resetting\r\n");
+    ESP.restart();
+  }
 
-  unsigned long e = timeClient.getEpochTime();
 
+  unsigned long e = myTZ.now();
+  //timeClient.getEpochTime();
+  
   if(e/60 != lastepoch)
   {
     lastepoch = e/60;
@@ -412,7 +430,7 @@ void loop() {
     int dayseconds = 86400;
     int halfdayseconds = dayseconds / 2;
     
-    float sleeptime = (timeClient.getEpochTime() % dayseconds + (12-1)*3600)/ (1.0*dayseconds);
+    float sleeptime = (e % dayseconds + (12-1)*3600)/ (1.0*dayseconds);
     int image_height = round(
         constrain(
           cos(2*M_PI*sleeptime)*64+16
@@ -432,6 +450,8 @@ void loop() {
     drawArm(((n-lastepoch_millis) % 60000)/(1.0*60000), 15.5, 15.5, 15, myBLUE);
 
     
+
+    
     
     
     
@@ -442,7 +462,7 @@ void loop() {
 
 
   ArduinoOTA.handle();
-  timeClient.update();
+  //timeClient.update();
 
   /*
   static int lasttimestr = 0;
